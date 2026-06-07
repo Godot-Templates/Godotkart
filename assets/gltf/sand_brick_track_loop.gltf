@@ -1,0 +1,386 @@
+{
+	"asset": {
+		"generator": "Khronos glTF Blender I/O v5.1.20",
+		"version": "2.0"
+	},
+	"scene": 0,
+	"scenes": [
+		{
+			"name": "Scene",
+			"nodes": [
+				0,
+				1,
+				2
+			]
+		}
+	],
+	"nodes": [
+		{
+			"mesh": 0,
+			"name": "SandBrickTrackLoopAsset"
+		},
+		{
+			"mesh": 1,
+			"name": "InnerSandstoneEdgeAsset"
+		},
+		{
+			"mesh": 2,
+			"name": "OuterSandstoneEdgeAsset"
+		}
+	],
+	"materials": [
+		{
+			"doubleSided": true,
+			"name": "sand brick ochre",
+			"pbrMetallicRoughness": {
+				"baseColorFactor": [
+					0.36,
+					0.21,
+					0.09,
+					1
+				],
+				"metallicFactor": 0,
+				"roughnessFactor": 0.949999988079071
+			}
+		},
+		{
+			"doubleSided": true,
+			"name": "sand brick light",
+			"pbrMetallicRoughness": {
+				"baseColorFactor": [
+					0.48,
+					0.32,
+					0.15,
+					1
+				],
+				"metallicFactor": 0,
+				"roughnessFactor": 0.949999988079071
+			}
+		},
+		{
+			"doubleSided": true,
+			"name": "sand brick dark",
+			"pbrMetallicRoughness": {
+				"baseColorFactor": [
+					0.23,
+					0.11,
+					0.04,
+					1
+				],
+				"metallicFactor": 0,
+				"roughnessFactor": 0.949999988079071
+			}
+		},
+		{
+			"doubleSided": true,
+			"name": "dark sandstone edge",
+			"pbrMetallicRoughness": {
+				"baseColorFactor": [
+					0.11,
+					0.055,
+					0.02,
+					1
+				],
+				"metallicFactor": 0,
+				"roughnessFactor": 0.949999988079071
+			}
+		}
+	],
+	"meshes": [
+		{
+			"name": "sand_brick_track_loop_mesh",
+			"primitives": [
+				{
+					"attributes": {
+						"POSITION": 0,
+						"NORMAL": 1
+					},
+					"indices": 2,
+					"material": 0
+				},
+				{
+					"attributes": {
+						"POSITION": 3,
+						"NORMAL": 4
+					},
+					"indices": 5,
+					"material": 1
+				},
+				{
+					"attributes": {
+						"POSITION": 6,
+						"NORMAL": 7
+					},
+					"indices": 8,
+					"material": 2
+				}
+			]
+		},
+		{
+			"name": "InnerSandstoneEdgeAsset_mesh",
+			"primitives": [
+				{
+					"attributes": {
+						"POSITION": 9,
+						"NORMAL": 10
+					},
+					"indices": 11,
+					"material": 3
+				}
+			]
+		},
+		{
+			"name": "OuterSandstoneEdgeAsset_mesh",
+			"primitives": [
+				{
+					"attributes": {
+						"POSITION": 12,
+						"NORMAL": 13
+					},
+					"indices": 14,
+					"material": 3
+				}
+			]
+		}
+	],
+	"accessors": [
+		{
+			"bufferView": 0,
+			"componentType": 5126,
+			"count": 1704,
+			"max": [
+				80.33696746826172,
+				1.767870306968689,
+				72.3147201538086
+			],
+			"min": [
+				-84.40380859375,
+				-1.2755792140960693,
+				-72.49785614013672
+			],
+			"type": "VEC3"
+		},
+		{
+			"bufferView": 1,
+			"componentType": 5126,
+			"count": 1704,
+			"type": "VEC3"
+		},
+		{
+			"bufferView": 2,
+			"componentType": 5123,
+			"count": 2556,
+			"type": "SCALAR"
+		},
+		{
+			"bufferView": 3,
+			"componentType": 5126,
+			"count": 1696,
+			"max": [
+				79.59304809570312,
+				1.767130732536316,
+				72.15150451660156
+			],
+			"min": [
+				-83.33253479003906,
+				-1.2059924602508545,
+				-71.2303695678711
+			],
+			"type": "VEC3"
+		},
+		{
+			"bufferView": 4,
+			"componentType": 5126,
+			"count": 1696,
+			"type": "VEC3"
+		},
+		{
+			"bufferView": 5,
+			"componentType": 5123,
+			"count": 2544,
+			"type": "SCALAR"
+		},
+		{
+			"bufferView": 6,
+			"componentType": 5126,
+			"count": 1696,
+			"max": [
+				80.62096405029297,
+				1.767870306968689,
+				72.7373046875
+			],
+			"min": [
+				-84.40380859375,
+				-1.2755792140960693,
+				-72.49785614013672
+			],
+			"type": "VEC3"
+		},
+		{
+			"bufferView": 7,
+			"componentType": 5126,
+			"count": 1696,
+			"type": "VEC3"
+		},
+		{
+			"bufferView": 8,
+			"componentType": 5123,
+			"count": 2544,
+			"type": "SCALAR"
+		},
+		{
+			"bufferView": 9,
+			"componentType": 5126,
+			"count": 728,
+			"max": [
+				81.36734008789062,
+				1.7833765745162964,
+				73.48702239990234
+			],
+			"min": [
+				-85.14271545410156,
+				-1.0532774925231934,
+				-73.24761199951172
+			],
+			"type": "VEC3"
+		},
+		{
+			"bufferView": 10,
+			"componentType": 5126,
+			"count": 728,
+			"type": "VEC3"
+		},
+		{
+			"bufferView": 11,
+			"componentType": 5123,
+			"count": 1092,
+			"type": "SCALAR"
+		},
+		{
+			"bufferView": 12,
+			"componentType": 5126,
+			"count": 728,
+			"max": [
+				67.68370819091797,
+				1.561885118484497,
+				59.74227523803711
+			],
+			"min": [
+				-71.7643814086914,
+				-1.2152836322784424,
+				-59.50214385986328
+			],
+			"type": "VEC3"
+		},
+		{
+			"bufferView": 13,
+			"componentType": 5126,
+			"count": 728,
+			"type": "VEC3"
+		},
+		{
+			"bufferView": 14,
+			"componentType": 5123,
+			"count": 1092,
+			"type": "SCALAR"
+		}
+	],
+	"bufferViews": [
+		{
+			"buffer": 0,
+			"byteLength": 20448,
+			"byteOffset": 0,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 20448,
+			"byteOffset": 20448,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 5112,
+			"byteOffset": 40896,
+			"target": 34963
+		},
+		{
+			"buffer": 0,
+			"byteLength": 20352,
+			"byteOffset": 46008,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 20352,
+			"byteOffset": 66360,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 5088,
+			"byteOffset": 86712,
+			"target": 34963
+		},
+		{
+			"buffer": 0,
+			"byteLength": 20352,
+			"byteOffset": 91800,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 20352,
+			"byteOffset": 112152,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 5088,
+			"byteOffset": 132504,
+			"target": 34963
+		},
+		{
+			"buffer": 0,
+			"byteLength": 8736,
+			"byteOffset": 137592,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 8736,
+			"byteOffset": 146328,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 2184,
+			"byteOffset": 155064,
+			"target": 34963
+		},
+		{
+			"buffer": 0,
+			"byteLength": 8736,
+			"byteOffset": 157248,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 8736,
+			"byteOffset": 165984,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 2184,
+			"byteOffset": 174720,
+			"target": 34963
+		}
+	],
+	"buffers": [
+		{
+			"byteLength": 176904,
+			"uri": "sand_brick_track_loop.bin"
+		}
+	]
+}

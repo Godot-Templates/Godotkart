@@ -1,0 +1,33 @@
+[gd_scene format=3 uid="uid://d8ipk00fl3sh"]
+
+[ext_resource type="PackedScene" uid="uid://dgfsh6djt67n8" path="res://assets/gltf/bumpy_grass_terrain.gltf" id="1_terrain"]
+[ext_resource type="PackedScene" uid="uid://wd8e7g13a2k6" path="res://assets/gltf/sand_brick_track_loop.gltf" id="2_track"]
+[ext_resource type="PackedScene" uid="uid://cl63i5eokxln7" path="res://assets/gltf/start_marker.gltf" id="3_start"]
+
+[sub_resource type="Environment" id="Environment_forest"]
+background_mode = 1
+background_color = Color(0.54, 0.76, 0.95, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.64, 0.72, 0.64, 1)
+ambient_light_energy = 0.28
+
+[node name="ForestTrack" type="Node3D" unique_id=880722893]
+
+[node name="BumpyGrassTerrain" parent="." unique_id=1937635154 instance=ExtResource("1_terrain")]
+
+[node name="SandBrickTrackLoop" parent="." unique_id=301188657 instance=ExtResource("2_track")]
+
+[node name="StartMarker" parent="." unique_id=1923916857 instance=ExtResource("3_start")]
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=1161712396]
+transform = Transform3D(1, 0, 0, 0, 0.77345777, 0.63384783, 0, -0.63384783, 0.77345777, 0, 105, 128)
+current = true
+fov = 48.0
+
+[node name="SunLight" type="DirectionalLight3D" parent="." unique_id=1082010108]
+transform = Transform3D(0.82903755, 0.44065002, -0.34427363, 0, 0.6156616, 0.78801066, 0.55919296, -0.65329045, 0.5104066, 0, 0, 0)
+light_energy = 1.25
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=2044309743]
+environment = SubResource("Environment_forest")

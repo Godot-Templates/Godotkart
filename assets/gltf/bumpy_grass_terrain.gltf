@@ -1,0 +1,176 @@
+{
+	"asset": {
+		"generator": "Khronos glTF Blender I/O v5.1.20",
+		"version": "2.0"
+	},
+	"scene": 0,
+	"scenes": [
+		{
+			"name": "Scene",
+			"nodes": [
+				0
+			]
+		}
+	],
+	"nodes": [
+		{
+			"mesh": 0,
+			"name": "BumpyGrassTerrainAsset"
+		}
+	],
+	"materials": [
+		{
+			"doubleSided": true,
+			"name": "deep forest grass",
+			"pbrMetallicRoughness": {
+				"baseColorFactor": [
+					0.02,
+					0.12,
+					0.018,
+					1
+				],
+				"metallicFactor": 0,
+				"roughnessFactor": 0.949999988079071
+			}
+		},
+		{
+			"doubleSided": true,
+			"name": "sunlit bump grass",
+			"pbrMetallicRoughness": {
+				"baseColorFactor": [
+					0.075,
+					0.25,
+					0.045,
+					1
+				],
+				"metallicFactor": 0,
+				"roughnessFactor": 0.949999988079071
+			}
+		}
+	],
+	"meshes": [
+		{
+			"name": "bumpy_grass_terrain_mesh",
+			"primitives": [
+				{
+					"attributes": {
+						"POSITION": 0,
+						"NORMAL": 1
+					},
+					"indices": 2,
+					"material": 0
+				},
+				{
+					"attributes": {
+						"POSITION": 3,
+						"NORMAL": 4
+					},
+					"indices": 5,
+					"material": 1
+				}
+			]
+		}
+	],
+	"accessors": [
+		{
+			"bufferView": 0,
+			"componentType": 5126,
+			"count": 21660,
+			"max": [
+				120,
+				0.39441025257110596,
+				120
+			],
+			"min": [
+				-120,
+				-1.5870918035507202,
+				-120
+			],
+			"type": "VEC3"
+		},
+		{
+			"bufferView": 1,
+			"componentType": 5126,
+			"count": 21660,
+			"type": "VEC3"
+		},
+		{
+			"bufferView": 2,
+			"componentType": 5123,
+			"count": 32490,
+			"type": "SCALAR"
+		},
+		{
+			"bufferView": 3,
+			"componentType": 5126,
+			"count": 15204,
+			"max": [
+				120,
+				1.562380075454712,
+				120
+			],
+			"min": [
+				-120,
+				0.011836540885269642,
+				-120
+			],
+			"type": "VEC3"
+		},
+		{
+			"bufferView": 4,
+			"componentType": 5126,
+			"count": 15204,
+			"type": "VEC3"
+		},
+		{
+			"bufferView": 5,
+			"componentType": 5123,
+			"count": 22806,
+			"type": "SCALAR"
+		}
+	],
+	"bufferViews": [
+		{
+			"buffer": 0,
+			"byteLength": 259920,
+			"byteOffset": 0,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 259920,
+			"byteOffset": 259920,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 64980,
+			"byteOffset": 519840,
+			"target": 34963
+		},
+		{
+			"buffer": 0,
+			"byteLength": 182448,
+			"byteOffset": 584820,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 182448,
+			"byteOffset": 767268,
+			"target": 34962
+		},
+		{
+			"buffer": 0,
+			"byteLength": 45612,
+			"byteOffset": 949716,
+			"target": 34963
+		}
+	],
+	"buffers": [
+		{
+			"byteLength": 995328,
+			"uri": "bumpy_grass_terrain.bin"
+		}
+	]
+}
