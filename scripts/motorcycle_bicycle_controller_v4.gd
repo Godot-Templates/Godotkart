@@ -11,14 +11,14 @@ const MIN_VECTOR_LENGTH = 0.001
 @export var brake_deceleration: float = 34.0
 @export var reverse_acceleration: float = 8.0
 @export var coast_deceleration: float = 2.0
-@export var max_forward_speed: float = 48.0
+@export var max_forward_speed: float = 42.0
 @export var max_reverse_speed: float = 9.0
 @export var wheelbase: float = 2.15
-@export var max_low_speed_steer: float = 0.62
-@export var max_high_speed_steer: float = 0.60
+@export var max_low_speed_steer: float = 0.54
+@export var max_high_speed_steer: float = 0.46
 @export var steering_response: float = 22.0
-@export var high_speed_curvature_scale: float = 2.25
-@export var turn_lateral_grip: float = 44.0
+@export var high_speed_curvature_scale: float = 1.75
+@export var turn_lateral_grip: float = 36.0
 @export var max_lean: float = 0.72
 @export var lean_response: float = 14.0
 @export var suspension_rest_length: float = 0.62
@@ -36,6 +36,17 @@ const MIN_VECTOR_LENGTH = 0.001
 @export var visual_smoothing: float = 13.0
 @export var camera_base_fov: float = 68.0
 @export var camera_speed_fov_boost: float = 24.0
+@export var hop_impulse: float = 3.2
+@export var hop_air_grace_duration: float = 1.8
+@export var min_drift_speed: float = 8.0
+@export var drift_charge_duration: float = 2.0
+@export var drift_steer_multiplier: float = 1.55
+@export var drift_grip_multiplier: float = 1.45
+@export var drift_lateral_speed: float = 1.8
+@export var drift_lateral_velocity_damping: float = 18.0
+@export var boost_duration: float = 1.25
+@export var boost_speed_bonus: float = 17.0
+@export var boost_acceleration: float = 54.0
 
 var _front_wheel_local_rest: Vector3 = Vector3.ZERO
 var _rear_wheel_local_rest: Vector3 = Vector3.ZERO
@@ -84,6 +95,17 @@ var _camera_orbit_yaw: float = 0.0
 var _camera_orbit_pitch: float = 0.0
 var _camera_mouse_sensitivity: float = 0.006
 var _physics_setup_complete: bool = false
+var _raw_hop_drift_pressed: bool = false
+var _was_hop_drift_pressed: bool = false
+var _is_drifting: bool = false
+var _drift_time: float = 0.0
+var _drift_direction: float = 0.0
+var _boost_time_remaining: float = 0.0
+var _hop_air_grace_time: float = 0.0
+var _spark_phase: float = 0.0
+var _drift_spark_nodes: Array[MeshInstance3D] = []
+var _spark_white_material: StandardMaterial3D = null
+var _spark_gold_material: StandardMaterial3D = null
 
 @onready var _camera_rig: Node3D = $CameraRig
 @onready var _camera: Camera3D = $CameraRig/Camera3D
@@ -105,11 +127,12 @@ func _ready() -> void:
     _camera.top_level = true
     _camera.current = true
     _cache_visual_rest_pose()
+    _create_drift_sparks()
     call_deferred("_finish_physics_setup")
 
 
 func _ensure_input_actions() -> void:
-    for action_name: String in ["drive_forward", "drive_reverse", "steer_left", "steer_right"]:
+    for action_name: String in ["drive_forward", "drive_reverse", "steer_left", "steer_right", "hop_drift"]:
         if not InputMap.has_action(action_name):
             InputMap.add_action(action_name)
 
@@ -150,6 +173,8 @@ func _input(event: InputEvent) -> void:
                 _raw_left_pressed = key_event.pressed
             KEY_D, KEY_RIGHT:
                 _raw_right_pressed = key_event.pressed
+            KEY_SPACE:
+                _raw_hop_drift_pressed = key_event.pressed
 
 
 func _physics_process(delta: float) -> void:
@@ -158,10 +183,12 @@ func _physics_process(delta: float) -> void:
     var throttle_pressed: bool = _is_forward_pressed()
     var brake_pressed: bool = _is_reverse_pressed()
     var steer_input: float = _get_steer_input()
+    var hop_drift_pressed: bool = _is_hop_drift_pressed()
     _update_ground_reference(delta)
     _update_motorcycle_axes()
     _apply_suspension()
     _update_ground_recovery(delta)
+    _update_hop_drift(steer_input, hop_drift_pressed, delta)
     _update_drive_speed(throttle_pressed, brake_pressed, delta)
     _update_steering_and_heading(steer_input, delta)
     _apply_controlled_velocity(delta)
@@ -271,10 +298,15 @@ func _apply_single_suspension(wheel_local_rest: Vector3, wheel_radius: float, lo
 func _update_ground_recovery(delta: float) -> void:
     if _grounded_wheel_count > 0:
         _airborne_time = 0.0
+        _hop_air_grace_time = 0.0
         _last_safe_position = global_position
         return
 
     _airborne_time += delta
+    if _hop_air_grace_time > 0.0:
+        _hop_air_grace_time = maxf(_hop_air_grace_time - delta, 0.0)
+        if global_position.y > -6.0:
+            return
     if _airborne_time < 0.75 and global_position.y > -3.0:
         return
 
@@ -302,7 +334,9 @@ func _update_drive_speed(throttle_pressed: bool, brake_pressed: bool, delta: flo
     else:
         var drag_deceleration: float = coast_deceleration + _drive_speed * _drive_speed * air_drag + absf(_drive_speed) * rolling_resistance
         _drive_speed = move_toward(_drive_speed, 0.0, drag_deceleration * delta)
-    _drive_speed = clampf(_drive_speed, -max_reverse_speed, max_forward_speed)
+    if _boost_time_remaining > 0.0:
+        _drive_speed = move_toward(_drive_speed, max_forward_speed + boost_speed_bonus, boost_acceleration * delta)
+    _drive_speed = clampf(_drive_speed, -max_reverse_speed, _get_active_forward_speed_limit())
 
 
 func _update_steering_and_heading(steer_input: float, delta: float) -> void:
@@ -310,12 +344,17 @@ func _update_steering_and_heading(steer_input: float, delta: float) -> void:
     var speed_abs: float = maxf(absf(_drive_speed), horizontal_speed)
     var speed_weight: float = clampf((speed_abs - 4.0) / 32.0, 0.0, 1.0)
     var max_steer: float = lerpf(max_low_speed_steer, max_high_speed_steer, speed_weight)
-    var target_steer_angle: float = -steer_input * max_steer
+    var active_steer_input: float = steer_input
+    if _is_drifting and absf(active_steer_input) < 0.1:
+        active_steer_input = _drift_direction
+    var steer_multiplier: float = drift_steer_multiplier if _is_drifting else 1.0
+    var target_steer_angle: float = clampf(-active_steer_input * max_steer * steer_multiplier, -max_low_speed_steer * drift_steer_multiplier, max_low_speed_steer * drift_steer_multiplier)
     var steer_weight: float = 1.0 - exp(-steering_response * delta)
     _front_steer_angle = lerpf(_front_steer_angle, target_steer_angle, steer_weight)
     var curvature_scale: float = lerpf(1.0, high_speed_curvature_scale, speed_weight)
     var raw_yaw_rate: float = _drive_speed * tan(_front_steer_angle) / maxf(wheelbase, 0.1) * curvature_scale
-    var grip_yaw_limit: float = turn_lateral_grip / maxf(speed_abs, 4.0) * curvature_scale
+    var active_turn_grip: float = turn_lateral_grip * (drift_grip_multiplier if _is_drifting else 1.0)
+    var grip_yaw_limit: float = active_turn_grip / maxf(speed_abs, 4.0) * curvature_scale
     _yaw_rate = clampf(raw_yaw_rate, -grip_yaw_limit, grip_yaw_limit)
     if speed_abs < 0.35:
         _yaw_rate = 0.0
@@ -335,7 +374,13 @@ func _apply_controlled_velocity(delta: float) -> void:
         return
     var vertical_velocity: Vector3 = _smoothed_ground_up * linear_velocity.dot(_smoothed_ground_up)
     var lateral_speed: float = linear_velocity.dot(_bike_right)
-    var damped_lateral_speed: float = move_toward(lateral_speed, 0.0, lateral_velocity_damping * delta)
+    var lateral_target: float = 0.0
+    var active_lateral_damping: float = lateral_velocity_damping
+    if _is_drifting:
+        var drift_speed_ratio: float = clampf(absf(_drive_speed) / maxf(max_forward_speed, 0.001), 0.0, 1.0)
+        lateral_target = _drift_direction * drift_lateral_speed * drift_speed_ratio
+        active_lateral_damping = drift_lateral_velocity_damping
+    var damped_lateral_speed: float = move_toward(lateral_speed, lateral_target, active_lateral_damping * delta)
     linear_velocity = _bike_forward * _drive_speed + _bike_right * damped_lateral_speed + vertical_velocity
     var planar_velocity: Vector3 = linear_velocity - _smoothed_ground_up * linear_velocity.dot(_smoothed_ground_up)
     _front_slip_angle = atan2(planar_velocity.dot(_bike_right), maxf(absf(_drive_speed), 1.0))
@@ -352,8 +397,9 @@ func _apply_aero_downforce() -> void:
 
 func _limit_unstable_velocity() -> void:
     var horizontal_velocity: Vector3 = Vector3(linear_velocity.x, 0.0, linear_velocity.z)
-    if horizontal_velocity.length() > max_forward_speed:
-        var capped_horizontal: Vector3 = horizontal_velocity.normalized() * max_forward_speed
+    var active_speed_limit: float = _get_active_forward_speed_limit()
+    if horizontal_velocity.length() > active_speed_limit:
+        var capped_horizontal: Vector3 = horizontal_velocity.normalized() * active_speed_limit
         linear_velocity.x = capped_horizontal.x
         linear_velocity.z = capped_horizontal.z
     linear_velocity.y = clampf(linear_velocity.y, -max_vertical_speed, max_vertical_speed)
@@ -414,6 +460,7 @@ func _update_visuals(delta: float) -> void:
     _front_wheel_hub.rotation = _front_hub_base_rotation + Vector3(_front_wheel_spin, _front_steer_angle, 0.0)
     _rear_wheel_tire.rotation = _rear_wheel_base_rotation + Vector3(_rear_wheel_spin, 0.0, 0.0)
     _rear_wheel_hub.rotation = _rear_hub_base_rotation + Vector3(_rear_wheel_spin, 0.0, 0.0)
+    _update_drift_sparks(delta)
 
 
 func get_telemetry() -> Dictionary:
@@ -432,8 +479,101 @@ func get_telemetry() -> Dictionary:
         "bike_forward": _bike_forward,
         "bike_right": _bike_right,
         "ground_up": _smoothed_ground_up,
-        "yaw_rate": _yaw_rate
+        "yaw_rate": _yaw_rate,
+        "is_drifting": _is_drifting,
+        "drift_time": _drift_time,
+        "drift_ready": _drift_time >= drift_charge_duration,
+        "boost_time_remaining": _boost_time_remaining
     }
+
+
+func _update_hop_drift(steer_input: float, hop_drift_pressed: bool, delta: float) -> void:
+    if _boost_time_remaining > 0.0:
+        _boost_time_remaining = maxf(_boost_time_remaining - delta, 0.0)
+    var just_pressed: bool = hop_drift_pressed and not _was_hop_drift_pressed
+    var just_released: bool = not hop_drift_pressed and _was_hop_drift_pressed
+    var speed_abs: float = absf(_drive_speed)
+    if just_pressed and _grounded_wheel_count > 0 and speed_abs >= min_drift_speed * 0.35:
+        _hop_air_grace_time = hop_air_grace_duration
+        linear_velocity += _smoothed_ground_up * hop_impulse
+    if hop_drift_pressed and absf(steer_input) > 0.1 and speed_abs >= min_drift_speed:
+        var steer_direction: float = signf(steer_input)
+        if not _is_drifting:
+            _start_drift(steer_direction)
+        else:
+            _drift_direction = steer_direction
+        _drift_time += delta
+    elif _is_drifting:
+        _finish_drift(just_released and _drift_time >= drift_charge_duration)
+    _was_hop_drift_pressed = hop_drift_pressed
+
+
+func _start_drift(direction: float) -> void:
+    _is_drifting = true
+    _drift_time = 0.0
+    _drift_direction = direction if absf(direction) > 0.1 else 1.0
+
+
+func _finish_drift(apply_boost: bool) -> void:
+    if apply_boost:
+        _trigger_drift_boost()
+    _is_drifting = false
+    _drift_time = 0.0
+    _drift_direction = 0.0
+
+
+func _trigger_drift_boost() -> void:
+    _boost_time_remaining = boost_duration
+    _drive_speed = minf(_get_active_forward_speed_limit(), maxf(_drive_speed, max_forward_speed + boost_speed_bonus * 0.45))
+
+
+func _get_active_forward_speed_limit() -> float:
+    if _boost_time_remaining > 0.0:
+        return max_forward_speed + boost_speed_bonus
+    return max_forward_speed
+
+
+func _create_drift_sparks() -> void:
+    _spark_white_material = _make_spark_material(Color(0.92, 0.98, 1.0, 1.0))
+    _spark_gold_material = _make_spark_material(Color(1.0, 0.68, 0.12, 1.0))
+    for spark_index: int in range(12):
+        var spark: MeshInstance3D = MeshInstance3D.new()
+        spark.name = "DriftSpark%d" % spark_index
+        spark.top_level = true
+        spark.visible = false
+        var spark_mesh: BoxMesh = BoxMesh.new()
+        spark_mesh.size = Vector3(0.10, 0.10, 0.10)
+        spark.mesh = spark_mesh
+        spark.material_override = _spark_white_material
+        add_child(spark)
+        _drift_spark_nodes.append(spark)
+
+
+func _make_spark_material(color: Color) -> StandardMaterial3D:
+    var material: StandardMaterial3D = StandardMaterial3D.new()
+    material.albedo_color = color
+    material.roughness = 0.22
+    return material
+
+
+func _update_drift_sparks(delta: float) -> void:
+    _spark_phase += delta * 18.0
+    var sparks_active: bool = _is_drifting
+    var charged: bool = _drift_time >= drift_charge_duration
+    for spark_index: int in range(_drift_spark_nodes.size()):
+        var spark: MeshInstance3D = _drift_spark_nodes[spark_index]
+        spark.visible = sparks_active
+        if not sparks_active:
+            continue
+        spark.material_override = _spark_gold_material if charged else _spark_white_material
+        var side: float = -1.0 if spark_index % 2 == 0 else 1.0
+        var lane: float = float(spark_index) * 0.5
+        var phase: float = _spark_phase + float(spark_index) * 0.73
+        var base_position: Vector3 = _rear_wheel_tire.global_position - _bike_forward * 0.42 + _bike_right * side * 0.34
+        var spray_offset: Vector3 = -_bike_forward * (0.12 + lane * 0.045) + _bike_right * side * (0.04 + absf(sin(phase)) * 0.18) + _smoothed_ground_up * (0.04 + absf(cos(phase * 1.7)) * 0.12)
+        spark.global_position = base_position + spray_offset
+        var pulse_scale: float = 0.55 + absf(sin(phase * 1.9)) * 0.55
+        spark.scale = Vector3.ONE * pulse_scale
 
 
 func _cache_visual_rest_pose() -> void:
@@ -578,6 +718,10 @@ func _is_descendant_of(node: Node, possible_parent: Node) -> bool:
             return true
         current = current.get_parent()
     return false
+
+
+func _is_hop_drift_pressed() -> bool:
+    return _raw_hop_drift_pressed or Input.is_action_pressed("hop_drift") or Input.is_physical_key_pressed(KEY_SPACE) or Input.is_key_pressed(KEY_SPACE)
 
 
 func _is_forward_pressed() -> bool:
