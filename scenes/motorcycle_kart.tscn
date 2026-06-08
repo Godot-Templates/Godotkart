@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://cmrkqfklyos57"]
 
-[ext_resource type="Script" uid="uid://k0jn7mu0gvtx" path="res://scripts/physical_wheel_motorcycle_controller.gd" id="1_controller"]
+[ext_resource type="Script" uid="uid://d1d1jsjjo5fa6" path="res://scripts/motorcycle_bicycle_controller_v4.gd" id="1_controller"]
 [ext_resource type="PackedScene" uid="uid://c62yu3li0cclw" path="res://assets/gltf/godot_plushy_motorcycle.gltf" id="2_model"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_body"]
