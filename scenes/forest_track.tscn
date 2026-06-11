@@ -3,6 +3,7 @@
 [ext_resource type="PackedScene" uid="uid://dgfsh6djt67n8" path="res://assets/gltf/bumpy_grass_terrain.gltf" id="1_terrain"]
 [ext_resource type="PackedScene" uid="uid://wd8e7g13a2k6" path="res://assets/gltf/sand_brick_track_loop.gltf" id="2_track"]
 [ext_resource type="PackedScene" uid="uid://cl63i5eokxln7" path="res://assets/gltf/start_marker.gltf" id="3_start"]
+[ext_resource type="PackedScene" path="res://scenes/course_enhancements.tscn" id="4_course_enhancements"]
 
 [sub_resource type="Environment" id="Environment_forest"]
 background_mode = 1
@@ -14,14 +15,21 @@ ambient_light_energy = 0.28
 [node name="ForestTrack" type="Node3D" unique_id=880722893]
 
 [node name="BumpyGrassTerrain" parent="." unique_id=1937635154 instance=ExtResource("1_terrain")]
+scale = Vector3(4.75, 1, 4.75)
 
 [node name="SandBrickTrackLoop" parent="." unique_id=301188657 instance=ExtResource("2_track")]
+position = Vector3(0, 2, 0)
+scale = Vector3(3.875, 1, 3.875)
 
 [node name="StartMarker" parent="." unique_id=1923916857 instance=ExtResource("3_start")]
+position = Vector3(0, 2, 0)
+scale = Vector3(3.875, 1, 3.875)
+
+[node name="CourseEnhancements" parent="." instance=ExtResource("4_course_enhancements")]
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=1161712396]
-transform = Transform3D(1, 0, 0, 0, 0.77345777, 0.63384783, 0, -0.63384783, 0.77345777, 0, 105, 128)
-fov = 48.0
+transform = Transform3D(1, 0, 0, 0, 0.77345777, 0.63384783, 0, -0.63384783, 0.77345777, 0, 406.875, 496)
+fov = 54.0
 
 [node name="SunLight" type="DirectionalLight3D" parent="." unique_id=1082010108]
 transform = Transform3D(0.82903755, 0.44065002, -0.34427363, 0, 0.6156616, 0.78801066, 0.55919296, -0.65329045, 0.5104066, 0, 0, 0)

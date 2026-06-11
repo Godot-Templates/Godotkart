@@ -1,9 +1,10 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene format=3 uid="uid://ddilh6rt8b1om"]
 
 [ext_resource type="PackedScene" uid="uid://dgfsh6djt67n8" path="res://assets/gltf/bumpy_grass_terrain.gltf" id="1_terrain"]
 [ext_resource type="PackedScene" uid="uid://wd8e7g13a2k6" path="res://assets/gltf/sand_brick_track_loop.gltf" id="2_track"]
 [ext_resource type="PackedScene" uid="uid://cl63i5eokxln7" path="res://assets/gltf/start_marker.gltf" id="3_start"]
 [ext_resource type="PackedScene" uid="uid://cmrkqfklyos57" path="res://scenes/motorcycle_kart.tscn" id="4_kart"]
+[ext_resource type="PackedScene" path="res://scenes/course_enhancements.tscn" id="5_course_enhancements"]
 
 [sub_resource type="Environment" id="Environment_forest"]
 background_mode = 1
@@ -12,22 +13,26 @@ ambient_light_source = 2
 ambient_light_color = Color(0.64, 0.72, 0.64, 1)
 ambient_light_energy = 0.28
 
-[node name="GodotkartRace" type="Node3D"]
+[node name="GodotkartRace" type="Node3D" unique_id=1418805414]
 
-[node name="BumpyGrassTerrain" parent="." instance=ExtResource("1_terrain")]
+[node name="BumpyGrassTerrain" parent="." unique_id=1956056573 instance=ExtResource("1_terrain")]
+transform = Transform3D(4.75, 0, 0, 0, 1, 0, 0, 0, 4.75, 0, 0, 0)
 
-[node name="SandBrickTrackLoop" parent="." instance=ExtResource("2_track")]
+[node name="SandBrickTrackLoop" parent="." unique_id=373295525 instance=ExtResource("2_track")]
+transform = Transform3D(3.875, 0, 0, 0, 1, 0, 0, 0, 3.875, 0, 2, 0)
 
-[node name="StartMarker" parent="." instance=ExtResource("3_start")]
+[node name="StartMarker" parent="." unique_id=2076589387 instance=ExtResource("3_start")]
+transform = Transform3D(3.875, 0, 0, 0, 1, 0, 0, 0, 3.875, 0, 2, 0)
 
-[node name="MotorcycleKart" parent="." instance=ExtResource("4_kart")]
-position = Vector3(-46.25, 1.05, 48.7)
-rotation = Vector3(0, -2.313, 0)
+[node name="CourseEnhancements" parent="." unique_id=1263163471 instance=ExtResource("5_course_enhancements")]
 
-[node name="SunLight" type="DirectionalLight3D" parent="."]
+[node name="MotorcycleKart" parent="." unique_id=1425662717 instance=ExtResource("4_kart")]
+transform = Transform3D(-0.6759136, 0, -0.73698086, 0, 1, 0, 0.73698086, 0, -0.6759136, -179.21875, 3.05, 188.7125)
+
+[node name="SunLight" type="DirectionalLight3D" parent="." unique_id=1172255539]
 transform = Transform3D(0.82903755, 0.44065002, -0.34427363, 0, 0.6156616, 0.78801066, 0.55919296, -0.65329045, 0.5104066, 0, 0, 0)
 light_energy = 1.25
 shadow_enabled = true
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=673407898]
 environment = SubResource("Environment_forest")
