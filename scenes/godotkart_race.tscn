@@ -5,15 +5,48 @@
 [ext_resource type="PackedScene" uid="uid://cl63i5eokxln7" path="res://assets/gltf/start_marker.gltf" id="3_start"]
 [ext_resource type="PackedScene" uid="uid://cmrkqfklyos57" path="res://scenes/motorcycle_kart.tscn" id="4_kart"]
 [ext_resource type="PackedScene" path="res://scenes/course_enhancements.tscn" id="5_course_enhancements"]
+[ext_resource type="PackedScene" path="res://scenes/realistic_forest_enhancements.tscn" id="6_forest"]
+[ext_resource type="PackedScene" path="res://scenes/cinematic_atmosphere.tscn" id="7_atmosphere"]
+[ext_resource type="Script" uid="uid://dkejgbyxbhin1" path="res://scripts/race_visual_upgrader.gd" id="8_visual_upgrader"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_gta"]
+sky_top_color = Color(0.16, 0.38, 0.72, 1)
+sky_horizon_color = Color(0.84, 0.7, 0.52, 1)
+sky_curve = 0.18
+sky_energy_multiplier = 1.05
+ground_bottom_color = Color(0.16, 0.2, 0.18, 1)
+ground_horizon_color = Color(0.48, 0.54, 0.46, 1)
+ground_curve = 0.08
+sun_angle_max = 7.0
+sun_curve = 0.08
+
+[sub_resource type="Sky" id="Sky_gta"]
+sky_material = SubResource("ProceduralSkyMaterial_gta")
 
 [sub_resource type="Environment" id="Environment_forest"]
-background_mode = 1
-background_color = Color(0.54, 0.76, 0.95, 1)
-ambient_light_source = 2
-ambient_light_color = Color(0.64, 0.72, 0.64, 1)
-ambient_light_energy = 0.28
+background_mode = 2
+background_energy_multiplier = 0.92
+sky = SubResource("Sky_gta")
+ambient_light_source = 1
+ambient_light_sky_contribution = 0.55
+ambient_light_energy = 0.74
+tonemap_mode = 2
+tonemap_exposure = 1.08
+tonemap_white = 6.0
+ssao_enabled = true
+ssao_radius = 2.2
+ssao_intensity = 1.25
+glow_enabled = true
+glow_intensity = 0.17
+glow_bloom = 0.06
+fog_enabled = true
+fog_light_color = Color(0.66, 0.74, 0.82, 1)
+fog_sun_scatter = 0.34
+fog_density = 0.0021
+fog_sky_affect = 0.5
 
 [node name="GodotkartRace" type="Node3D" unique_id=1418805414]
+script = ExtResource("8_visual_upgrader")
 
 [node name="BumpyGrassTerrain" parent="." unique_id=1956056573 instance=ExtResource("1_terrain")]
 transform = Transform3D(4.75, 0, 0, 0, 1, 0, 0, 0, 4.75, 0, 0, 0)
@@ -31,8 +64,17 @@ transform = Transform3D(-0.6759136, 0, -0.73698086, 0, 1, 0, 0.73698086, 0, -0.6
 
 [node name="SunLight" type="DirectionalLight3D" parent="." unique_id=1172255539]
 transform = Transform3D(0.82903755, 0.44065002, -0.34427363, 0, 0.6156616, 0.78801066, 0.55919296, -0.65329045, 0.5104066, 0, 0, 0)
-light_energy = 1.25
+light_energy = 1.85
+light_angular_distance = 1.0
 shadow_enabled = true
+directional_shadow_split_1 = 0.12
+directional_shadow_split_2 = 0.32
+directional_shadow_blend_splits = true
+directional_shadow_max_distance = 200.0
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=673407898]
 environment = SubResource("Environment_forest")
+
+[node name="RealisticForestEnhancements" parent="." unique_id=280960297 instance=ExtResource("6_forest")]
+
+[node name="CinematicAtmosphere" parent="." unique_id=1598743331 instance=ExtResource("7_atmosphere")]
