@@ -146,6 +146,8 @@ var _boost_wind_streaks: Array[MeshInstance3D] = []
 var _obstacle_rider_probe_shape: CapsuleShape3D = null
 var _obstacle_blocked: bool = false
 var _obstacle_block_normal: Vector3 = Vector3.ZERO
+var _controls_locked: bool = false
+var _burnout_timer: float = 0.0
 var _surface_detector: Area3D = null
 var _active_surface_areas: Array[TrackSurfaceArea3D] = []
 var _current_surface: TrackSurfaceArea3D = null
@@ -342,10 +344,16 @@ func _input(event: InputEvent) -> void:
 func _physics_process(delta: float) -> void:
     if not _physics_setup_complete:
         return
+    _burnout_timer = maxf(_burnout_timer - delta, 0.0)
     var throttle_pressed: bool = _is_forward_pressed()
     var brake_pressed: bool = _is_reverse_pressed()
     var steer_input: float = _get_steer_input()
     var hop_drift_pressed: bool = _is_hop_drift_pressed()
+    if _controls_locked or _burnout_timer > 0.0:
+        throttle_pressed = false
+        brake_pressed = false
+        steer_input = 0.0
+        hop_drift_pressed = false
     _update_ground_reference(delta)
     _update_motorcycle_axes()
     _apply_suspension()
@@ -509,7 +517,41 @@ func _try_apply_surface_jump(surface_area: TrackSurfaceArea3D) -> void:
 
 
 func _respawn_at_start(height_offset: float) -> void:
-    global_transform = _spawn_transform.translated(Vector3.UP * maxf(height_offset, START_RESPAWN_HEIGHT))
+    respawn_to_transform(_spawn_transform.translated(Vector3.UP * maxf(height_offset, START_RESPAWN_HEIGHT)))
+
+
+func set_controls_locked(locked: bool) -> void:
+    _controls_locked = locked
+    if locked:
+        _drive_speed = 0.0
+        linear_velocity = Vector3.ZERO
+        angular_velocity = Vector3.ZERO
+
+
+func is_accelerating_input_pressed() -> bool:
+    return _is_forward_pressed()
+
+
+func apply_start_boost(duration: float = 1.25, speed_bonus: float = 18.0) -> void:
+    _burnout_timer = 0.0
+    _controls_locked = false
+    _trigger_drift_boost(duration, speed_bonus)
+
+
+func apply_mushroom_boost(duration: float = 0.95, speed_bonus: float = 16.0) -> void:
+    _trigger_drift_boost(duration, speed_bonus)
+
+
+func apply_burnout(duration: float = 1.1) -> void:
+    _burnout_timer = maxf(duration, 0.0)
+    _controls_locked = false
+    _drive_speed = 0.0
+    linear_velocity = Vector3.ZERO
+    angular_velocity = Vector3.ZERO
+
+
+func respawn_to_transform(target_transform: Transform3D) -> void:
+    global_transform = target_transform
     linear_velocity = Vector3.ZERO
     angular_velocity = Vector3.ZERO
     _drive_speed = 0.0
@@ -968,6 +1010,8 @@ func get_telemetry() -> Dictionary:
         "mini_turbo_ready": _drift_state == DriftState.MINI_TURBO_READY or _drift_state == DriftState.SUPER_MINI_TURBO_READY,
         "super_mini_turbo_ready": _drift_state == DriftState.SUPER_MINI_TURBO_READY,
         "boost_time_remaining": _boost_time_remaining,
+        "controls_locked": _controls_locked,
+        "burnout_timer": _burnout_timer,
         "surface_name": _get_current_surface_name(),
         "surface_speed_multiplier": _surface_speed_multiplier,
         "surface_turn_multiplier": _surface_turn_multiplier,
@@ -1453,7 +1497,7 @@ func _add_mesh_colliders(node: Node, static_body: StaticBody3D) -> void:
         return
     if node is MeshInstance3D:
         var mesh_instance: MeshInstance3D = node as MeshInstance3D
-        if not _is_descendant_of(mesh_instance, self) and mesh_instance.mesh != null:
+        if not _is_descendant_of(mesh_instance, self) and not _should_skip_world_collider(mesh_instance) and mesh_instance.mesh != null:
             var shape: Shape3D = mesh_instance.mesh.create_trimesh_shape()
             var concave_shape: ConcavePolygonShape3D = shape as ConcavePolygonShape3D
             if concave_shape != null:
@@ -1466,6 +1510,21 @@ func _add_mesh_colliders(node: Node, static_body: StaticBody3D) -> void:
                 collision_shape.transform = static_body.global_transform.affine_inverse() * mesh_instance.global_transform
     for child: Node in node.get_children():
         _add_mesh_colliders(child, static_body)
+
+
+func _should_skip_world_collider(mesh_instance: MeshInstance3D) -> bool:
+    if mesh_instance.has_meta("skip_world_collision"):
+        return true
+    var current: Node = mesh_instance
+    while current != null:
+        if current.name == "RaceFlow" or current.name == "SurfaceZones" or current.name == "RaceHUD" or current.name == "ItemBoxes":
+            return true
+        if current.name == "CheckpointVisual" or current.name == "TrackSurfaceVisuals" or current.name == "ItemBoxVisual":
+            return true
+        if current is RaceCheckpoint3D or current is TrackSurfaceArea3D:
+            return true
+        current = current.get_parent()
+    return false
 
 
 func _make_world_meshes_double_sided(node: Node) -> void:

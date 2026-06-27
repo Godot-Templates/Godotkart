@@ -27,6 +27,13 @@ const KART_LAYER = 2
 @export var respawn_height_offset: float = 1.6
 @export var display_track_visuals: bool = true
 @export var display_debug_mesh: bool = false
+@export_group("Visual Tuning")
+@export var visual_yaw_degrees: float = -90.0
+@export var visual_height_offset: float = 0.0
+@export var visual_scale_x: float = 1.0
+@export var visual_scale_z: float = 1.0
+@export var visual_flip_forward: bool = false
+@export_group("")
 
 var _debug_mesh: MeshInstance3D = null
 var _visual_root: Node3D = null
@@ -123,12 +130,16 @@ func _create_track_visuals() -> void:
     _visual_root.name = "TrackSurfaceVisuals"
     _visual_root.transform = collision_shape.transform
     _visual_root.position.y -= box_shape.size.y * 0.515
-    _visual_root.rotation.y -= PI * 0.5
+    _visual_root.position.y += visual_height_offset
+    _visual_root.rotation.y += deg_to_rad(visual_yaw_degrees)
+    if visual_flip_forward:
+        _visual_root.rotation.y += PI
     add_child(_visual_root)
+    var visual_size: Vector3 = Vector3(box_shape.size.x * visual_scale_x, box_shape.size.y, box_shape.size.z * visual_scale_z)
     if is_boost_pad():
-        _create_boost_pad_visual(box_shape.size)
+        _create_boost_pad_visual(visual_size)
     elif is_jump_pad():
-        _create_jump_pad_visual(box_shape.size)
+        _create_jump_pad_visual(visual_size)
 
 
 func _create_boost_pad_visual(size: Vector3) -> void:
@@ -166,6 +177,7 @@ func _add_flat_box_visual(visual_name: String, size: Vector3, local_position: Ve
     mesh_instance.rotation.y = yaw
     mesh_instance.material_override = material
     mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+    mesh_instance.set_meta("skip_world_collision", true)
     _visual_root.add_child(mesh_instance)
 
 
