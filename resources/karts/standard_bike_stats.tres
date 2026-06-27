@@ -1,0 +1,56 @@
+[gd_resource type="Resource" script_class="KartStats" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/kart/kart_stats.gd" id="1_stats_script"]
+
+[resource]
+script = ExtResource("1_stats_script")
+engine_acceleration = 12.5
+brake_deceleration = 34.0
+reverse_acceleration = 8.0
+coast_deceleration = 2.0
+max_forward_speed = 42.0
+max_reverse_speed = 9.0
+rolling_resistance = 0.045
+air_drag = 0.008
+aero_downforce = 1.1
+max_vertical_speed = 18.0
+wheelbase = 2.15
+max_low_speed_steer = 0.54
+max_high_speed_steer = 0.46
+steering_response = 22.0
+high_speed_curvature_scale = 1.75
+turn_lateral_grip = 36.0
+lateral_velocity_damping = 56.0
+max_lean = 0.436332
+max_drift_lean = 0.523599
+lean_response = 14.0
+suspension_rest_length = 0.62
+suspension_stiffness = 15000.0
+suspension_compression_damping = 2600.0
+suspension_rebound_damping = 3600.0
+suspension_max_force = 13000.0
+rear_wheel_radius = 0.6
+front_wheel_radius = 0.52
+hop_impulse = 3.2
+min_drift_speed = 8.0
+drift_charge_duration = 1.0
+drift_steer_multiplier = 1.55
+drift_grip_multiplier = 1.45
+drift_lateral_speed = 1.8
+drift_lateral_velocity_damping = 18.0
+boost_duration = 1.25
+boost_speed_bonus = 17.0
+boost_acceleration = 54.0
+boost_fov_bonus = 14.0
+boost_fx_fov_enabled = true
+boost_fx_wind_enabled = true
+visual_smoothing = 13.0
+camera_base_fov = 68.0
+camera_speed_fov_boost = 24.0
+obstacle_probe_distance = 2.1
+obstacle_probe_speed_lookahead = 0.08
+obstacle_wall_normal_max_up = 0.55
+wall_slide_speed_retention = 0.995
+wall_bounce_strength = 0.16
+wall_bounce_max_speed = 1.6
+wall_unstick_push_speed = 0.85
