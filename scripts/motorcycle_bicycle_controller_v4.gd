@@ -7,6 +7,16 @@ const FALLBACK_GROUND_VISUAL_NAME = "GeneratedFallbackGroundVisual"
 const GRAVITY = 9.8
 const MIN_VECTOR_LENGTH = 0.001
 const DEFAULT_KART_STATS: KartStats = preload("res://resources/karts/standard_bike_stats.tres")
+const SURFACE_DETECTOR_NAME = "GeneratedSurfaceDetector"
+const START_RESPAWN_HEIGHT = 1.2
+
+enum DriftState {
+    NONE,
+    HOPPING,
+    CHARGING_MINI_TURBO,
+    MINI_TURBO_READY,
+    SUPER_MINI_TURBO_READY
+}
 
 @export var show_debug_sliders: bool = true
 @export var kart_stats: KartStats = DEFAULT_KART_STATS
@@ -42,14 +52,19 @@ var visual_smoothing: float = 13.0
 var camera_base_fov: float = 68.0
 var camera_speed_fov_boost: float = 24.0
 var hop_impulse: float = 3.2
-var min_drift_speed: float = 8.0
-var drift_charge_duration: float = 1.0
+var min_drift_speed: float = 3.5
+var mini_turbo_charge_duration: float = 0.75
+var super_mini_turbo_charge_duration: float = 1.8
 var drift_steer_multiplier: float = 1.55
 var drift_grip_multiplier: float = 1.45
 var drift_lateral_speed: float = 1.8
 var drift_lateral_velocity_damping: float = 18.0
 var boost_duration: float = 1.25
 var boost_speed_bonus: float = 17.0
+var mini_turbo_boost_duration: float = 0.8
+var super_mini_turbo_boost_duration: float = 1.6
+var mini_turbo_speed_bonus: float = 11.0
+var super_mini_turbo_speed_bonus: float = 19.0
 var boost_acceleration: float = 54.0
 var boost_fov_bonus: float = 14.0
 var boost_fx_fov_enabled: bool = true
@@ -110,13 +125,17 @@ var _physics_setup_complete: bool = false
 var _raw_hop_drift_pressed: bool = false
 var _was_hop_drift_pressed: bool = false
 var _is_drifting: bool = false
+var _drift_state: DriftState = DriftState.NONE
 var _drift_time: float = 0.0
 var _drift_direction: float = 0.0
 var _boost_time_remaining: float = 0.0
+var _active_boost_duration: float = 1.25
+var _active_boost_speed_bonus: float = 17.0
 var _boost_hop_drift_lockout: bool = false
 var _spark_phase: float = 0.0
 var _drift_spark_nodes: Array[MeshInstance3D] = []
 var _spark_white_material: StandardMaterial3D = null
+var _spark_blue_material: StandardMaterial3D = null
 var _spark_gold_material: StandardMaterial3D = null
 var _debug_max_speed_value_label: Label = null
 var _debug_acceleration_value_label: Label = null
@@ -127,6 +146,17 @@ var _boost_wind_streaks: Array[MeshInstance3D] = []
 var _obstacle_rider_probe_shape: CapsuleShape3D = null
 var _obstacle_blocked: bool = false
 var _obstacle_block_normal: Vector3 = Vector3.ZERO
+var _surface_detector: Area3D = null
+var _active_surface_areas: Array[TrackSurfaceArea3D] = []
+var _current_surface: TrackSurfaceArea3D = null
+var _surface_speed_multiplier: float = 1.0
+var _surface_acceleration_multiplier: float = 1.0
+var _surface_turn_multiplier: float = 1.0
+var _surface_grip_multiplier: float = 1.0
+var _surface_boost_cooldown: float = 0.0
+var _surface_jump_cooldown: float = 0.0
+var _out_of_bounds_time: float = 0.0
+var _spawn_transform: Transform3D = Transform3D.IDENTITY
 
 @onready var _camera_rig: Node3D = $CameraRig
 @onready var _camera: Camera3D = $CameraRig/Camera3D
@@ -180,14 +210,21 @@ func _apply_kart_stats() -> void:
     camera_speed_fov_boost = active_stats.camera_speed_fov_boost
     hop_impulse = active_stats.hop_impulse
     min_drift_speed = active_stats.min_drift_speed
-    drift_charge_duration = active_stats.drift_charge_duration
+    mini_turbo_charge_duration = active_stats.mini_turbo_charge_duration
+    super_mini_turbo_charge_duration = active_stats.super_mini_turbo_charge_duration
     drift_steer_multiplier = active_stats.drift_steer_multiplier
     drift_grip_multiplier = active_stats.drift_grip_multiplier
     drift_lateral_speed = active_stats.drift_lateral_speed
     drift_lateral_velocity_damping = active_stats.drift_lateral_velocity_damping
     boost_duration = active_stats.boost_duration
     boost_speed_bonus = active_stats.boost_speed_bonus
+    mini_turbo_boost_duration = active_stats.mini_turbo_boost_duration
+    super_mini_turbo_boost_duration = active_stats.super_mini_turbo_boost_duration
+    mini_turbo_speed_bonus = active_stats.mini_turbo_speed_bonus
+    super_mini_turbo_speed_bonus = active_stats.super_mini_turbo_speed_bonus
     boost_acceleration = active_stats.boost_acceleration
+    _active_boost_duration = boost_duration
+    _active_boost_speed_bonus = boost_speed_bonus
     boost_fov_bonus = active_stats.boost_fov_bonus
     boost_fx_fov_enabled = active_stats.boost_fx_fov_enabled
     boost_fx_wind_enabled = active_stats.boost_fx_wind_enabled
@@ -202,7 +239,9 @@ func _apply_kart_stats() -> void:
 
 func _ready() -> void:
     _apply_kart_stats()
+    _spawn_transform = global_transform
     _ensure_input_actions()
+    _create_surface_detector()
     _camera.top_level = true
     _camera.current = true
     _cache_visual_rest_pose()
@@ -233,6 +272,41 @@ func _create_obstacle_probe_shapes() -> void:
     _obstacle_rider_probe_shape = CapsuleShape3D.new()
     _obstacle_rider_probe_shape.radius = 0.62
     _obstacle_rider_probe_shape.height = 1.95
+
+
+func _create_surface_detector() -> void:
+    if _surface_detector != null:
+        return
+    _surface_detector = Area3D.new()
+    _surface_detector.name = SURFACE_DETECTOR_NAME
+    _surface_detector.collision_layer = 0
+    _surface_detector.collision_mask = TrackSurfaceArea3D.SURFACE_LAYER
+    _surface_detector.monitoring = true
+    _surface_detector.monitorable = false
+    _surface_detector.area_entered.connect(Callable(self, "_on_surface_area_entered"))
+    _surface_detector.area_exited.connect(Callable(self, "_on_surface_area_exited"))
+    add_child(_surface_detector)
+    var detector_shape: CollisionShape3D = CollisionShape3D.new()
+    detector_shape.name = "SurfaceDetectorShape"
+    var sphere_shape: SphereShape3D = SphereShape3D.new()
+    sphere_shape.radius = 1.05
+    detector_shape.shape = sphere_shape
+    detector_shape.position = Vector3(0.0, 0.65, 0.0)
+    _surface_detector.add_child(detector_shape)
+
+
+func _on_surface_area_entered(area: Area3D) -> void:
+    var surface_area: TrackSurfaceArea3D = area as TrackSurfaceArea3D
+    if surface_area == null or _active_surface_areas.has(surface_area):
+        return
+    _active_surface_areas.append(surface_area)
+
+
+func _on_surface_area_exited(area: Area3D) -> void:
+    var surface_area: TrackSurfaceArea3D = area as TrackSurfaceArea3D
+    if surface_area == null:
+        return
+    _active_surface_areas.erase(surface_area)
 
 
 func _input(event: InputEvent) -> void:
@@ -275,6 +349,7 @@ func _physics_process(delta: float) -> void:
     _update_ground_reference(delta)
     _update_motorcycle_axes()
     _apply_suspension()
+    _update_active_surface(delta)
     _update_hop_drift(steer_input, hop_drift_pressed, delta)
     _update_drive_speed(throttle_pressed, brake_pressed, delta)
     _update_steering_and_heading(steer_input, delta)
@@ -382,6 +457,72 @@ func _apply_single_suspension(wheel_local_rest: Vector3, wheel_radius: float, lo
     return compression
 
 
+func _update_active_surface(delta: float) -> void:
+    _surface_boost_cooldown = maxf(_surface_boost_cooldown - delta, 0.0)
+    _surface_jump_cooldown = maxf(_surface_jump_cooldown - delta, 0.0)
+    _current_surface = _choose_highest_priority_surface()
+    _surface_speed_multiplier = 1.0
+    _surface_acceleration_multiplier = 1.0
+    _surface_turn_multiplier = 1.0
+    _surface_grip_multiplier = 1.0
+    if _current_surface == null:
+        _out_of_bounds_time = 0.0
+        return
+    _surface_speed_multiplier = maxf(_current_surface.speed_multiplier, 0.05)
+    _surface_acceleration_multiplier = maxf(_current_surface.acceleration_multiplier, 0.05)
+    _surface_turn_multiplier = maxf(_current_surface.turn_multiplier, 0.05)
+    _surface_grip_multiplier = maxf(_current_surface.grip_multiplier, 0.05)
+    if _current_surface.is_boost_pad():
+        _try_apply_surface_boost(_current_surface)
+    if _current_surface.is_jump_pad():
+        _try_apply_surface_jump(_current_surface)
+    if _current_surface.is_out_of_bounds():
+        _out_of_bounds_time += delta
+        if _out_of_bounds_time >= 0.35:
+            _respawn_at_start(_current_surface.respawn_height_offset)
+    else:
+        _out_of_bounds_time = 0.0
+
+
+func _choose_highest_priority_surface() -> TrackSurfaceArea3D:
+    var best_surface: TrackSurfaceArea3D = null
+    for surface_area: TrackSurfaceArea3D in _active_surface_areas:
+        if not is_instance_valid(surface_area):
+            continue
+        if best_surface == null or surface_area.surface_priority >= best_surface.surface_priority:
+            best_surface = surface_area
+    return best_surface
+
+
+func _try_apply_surface_boost(surface_area: TrackSurfaceArea3D) -> void:
+    if _surface_boost_cooldown > 0.0:
+        return
+    _trigger_drift_boost(surface_area.boost_duration, surface_area.boost_speed_bonus)
+    _surface_boost_cooldown = maxf(surface_area.boost_duration * 0.65, 0.35)
+
+
+func _try_apply_surface_jump(surface_area: TrackSurfaceArea3D) -> void:
+    if _surface_jump_cooldown > 0.0:
+        return
+    linear_velocity += _smoothed_ground_up * surface_area.jump_impulse
+    _surface_jump_cooldown = 0.65
+
+
+func _respawn_at_start(height_offset: float) -> void:
+    global_transform = _spawn_transform.translated(Vector3.UP * maxf(height_offset, START_RESPAWN_HEIGHT))
+    linear_velocity = Vector3.ZERO
+    angular_velocity = Vector3.ZERO
+    _drive_speed = 0.0
+    _is_drifting = false
+    _drift_state = DriftState.NONE
+    _drift_time = 0.0
+    _boost_time_remaining = 0.0
+    _out_of_bounds_time = 0.0
+    _active_surface_areas.clear()
+    _initialize_heading()
+    _update_motorcycle_axes()
+
+
 func _update_drive_speed(throttle_pressed: bool, brake_pressed: bool, delta: float) -> void:
     var planar_velocity: Vector3 = linear_velocity - _smoothed_ground_up * linear_velocity.dot(_smoothed_ground_up)
     var measured_forward_speed: float = planar_velocity.length()
@@ -390,7 +531,7 @@ func _update_drive_speed(throttle_pressed: bool, brake_pressed: bool, delta: flo
     _drive_speed = lerpf(_drive_speed, measured_forward_speed, clampf(delta * 3.0, 0.0, 1.0))
     if throttle_pressed:
         var power_fade: float = clampf(1.0 - maxf(_drive_speed, 0.0) / max_forward_speed * 0.35, 0.35, 1.0)
-        _drive_speed += engine_acceleration * power_fade * delta
+        _drive_speed += engine_acceleration * _surface_acceleration_multiplier * power_fade * delta
     elif brake_pressed:
         if _drive_speed > 0.5:
             _drive_speed = move_toward(_drive_speed, 0.0, brake_deceleration * delta)
@@ -400,15 +541,19 @@ func _update_drive_speed(throttle_pressed: bool, brake_pressed: bool, delta: flo
         var drag_deceleration: float = coast_deceleration + _drive_speed * _drive_speed * air_drag + absf(_drive_speed) * rolling_resistance
         _drive_speed = move_toward(_drive_speed, 0.0, drag_deceleration * delta)
     if _boost_time_remaining > 0.0:
-        _drive_speed = move_toward(_drive_speed, max_forward_speed + boost_speed_bonus, boost_acceleration * delta)
+        _drive_speed = move_toward(_drive_speed, max_forward_speed + _active_boost_speed_bonus, boost_acceleration * delta)
     _drive_speed = clampf(_drive_speed, -max_reverse_speed, _get_active_forward_speed_limit())
+    if _boost_time_remaining <= 0.0 and _surface_speed_multiplier < 0.999:
+        var surface_limited_speed: float = max_forward_speed * _surface_speed_multiplier
+        if _drive_speed > surface_limited_speed:
+            _drive_speed = move_toward(_drive_speed, surface_limited_speed, brake_deceleration * (1.0 - _surface_speed_multiplier) * delta)
 
 
 func _update_steering_and_heading(steer_input: float, delta: float) -> void:
     var horizontal_speed: float = Vector3(linear_velocity.x, 0.0, linear_velocity.z).length()
     var speed_abs: float = maxf(absf(_drive_speed), horizontal_speed)
     var speed_weight: float = clampf((speed_abs - 4.0) / 32.0, 0.0, 1.0)
-    var max_steer: float = lerpf(max_low_speed_steer, max_high_speed_steer, speed_weight)
+    var max_steer: float = lerpf(max_low_speed_steer, max_high_speed_steer, speed_weight) * _surface_turn_multiplier
     var active_steer_input: float = steer_input
     if _is_drifting and absf(active_steer_input) < 0.1:
         active_steer_input = _drift_direction
@@ -418,7 +563,7 @@ func _update_steering_and_heading(steer_input: float, delta: float) -> void:
     _front_steer_angle = lerpf(_front_steer_angle, target_steer_angle, steer_weight)
     var curvature_scale: float = lerpf(1.0, high_speed_curvature_scale, speed_weight)
     var raw_yaw_rate: float = _drive_speed * tan(_front_steer_angle) / maxf(wheelbase, 0.1) * curvature_scale
-    var active_turn_grip: float = turn_lateral_grip * (drift_grip_multiplier if _is_drifting else 1.0)
+    var active_turn_grip: float = turn_lateral_grip * _surface_grip_multiplier * (drift_grip_multiplier if _is_drifting else 1.0)
     var grip_yaw_limit: float = active_turn_grip / maxf(speed_abs, 4.0) * curvature_scale
     _yaw_rate = clampf(raw_yaw_rate, -grip_yaw_limit, grip_yaw_limit)
     if speed_abs < 0.35:
@@ -817,9 +962,16 @@ func get_telemetry() -> Dictionary:
         "ground_up": _smoothed_ground_up,
         "yaw_rate": _yaw_rate,
         "is_drifting": _is_drifting,
+        "drift_state": _drift_state,
+        "drift_state_name": _get_drift_state_name(),
         "drift_time": _drift_time,
-        "drift_ready": _drift_time >= drift_charge_duration,
+        "mini_turbo_ready": _drift_state == DriftState.MINI_TURBO_READY or _drift_state == DriftState.SUPER_MINI_TURBO_READY,
+        "super_mini_turbo_ready": _drift_state == DriftState.SUPER_MINI_TURBO_READY,
         "boost_time_remaining": _boost_time_remaining,
+        "surface_name": _get_current_surface_name(),
+        "surface_speed_multiplier": _surface_speed_multiplier,
+        "surface_turn_multiplier": _surface_turn_multiplier,
+        "surface_grip_multiplier": _surface_grip_multiplier,
         "obstacle_blocked": _obstacle_blocked,
         "obstacle_block_normal": _obstacle_block_normal
     }
@@ -844,6 +996,7 @@ func _update_hop_drift(steer_input: float, hop_drift_pressed: bool, delta: float
     var speed_abs: float = absf(_drive_speed)
     if just_pressed and _grounded_wheel_count > 0 and speed_abs >= min_drift_speed * 0.35:
         linear_velocity += _smoothed_ground_up * hop_impulse
+        _drift_state = DriftState.HOPPING
     if hop_drift_pressed and absf(steer_input) > 0.1 and speed_abs >= min_drift_speed:
         var steer_direction: float = signf(steer_input)
         if not _is_drifting:
@@ -851,44 +1004,85 @@ func _update_hop_drift(steer_input: float, hop_drift_pressed: bool, delta: float
         else:
             _drift_direction = steer_direction
         _drift_time += delta
+        _update_drift_charge_state()
     elif _is_drifting:
-        _finish_drift(just_released and _drift_time >= drift_charge_duration)
+        _finish_drift(just_released)
+    elif just_released or not hop_drift_pressed:
+        _drift_state = DriftState.NONE
     _was_hop_drift_pressed = hop_drift_pressed
 
 
 func _start_drift(direction: float) -> void:
     _is_drifting = true
+    _drift_state = DriftState.CHARGING_MINI_TURBO
     _drift_time = 0.0
     _drift_direction = direction if absf(direction) > 0.1 else 1.0
 
 
+func _update_drift_charge_state() -> void:
+    if not _is_drifting:
+        return
+    if _drift_time >= super_mini_turbo_charge_duration:
+        _drift_state = DriftState.SUPER_MINI_TURBO_READY
+    elif _drift_time >= mini_turbo_charge_duration:
+        _drift_state = DriftState.MINI_TURBO_READY
+    else:
+        _drift_state = DriftState.CHARGING_MINI_TURBO
+
+
 func _finish_drift(apply_boost: bool) -> void:
     if apply_boost:
-        _trigger_drift_boost()
+        if _drift_state == DriftState.SUPER_MINI_TURBO_READY:
+            _trigger_drift_boost(super_mini_turbo_boost_duration, super_mini_turbo_speed_bonus)
+        elif _drift_state == DriftState.MINI_TURBO_READY:
+            _trigger_drift_boost(mini_turbo_boost_duration, mini_turbo_speed_bonus)
     _is_drifting = false
+    _drift_state = DriftState.NONE
     _drift_time = 0.0
     _drift_direction = 0.0
 
 
-func _trigger_drift_boost() -> void:
+func _trigger_drift_boost(duration: float = -1.0, speed_bonus: float = -1.0) -> void:
     if _boost_time_remaining > 0.0:
         return
-    _boost_time_remaining = boost_duration
+    _active_boost_duration = boost_duration if duration <= 0.0 else duration
+    _active_boost_speed_bonus = boost_speed_bonus if speed_bonus < 0.0 else speed_bonus
+    _boost_time_remaining = _active_boost_duration
     _boost_effect_time = 0.0
     _boost_hop_drift_lockout = false
-    _drive_speed = minf(_get_active_forward_speed_limit(), maxf(_drive_speed, max_forward_speed + boost_speed_bonus * 0.45))
+    _drive_speed = minf(_get_active_forward_speed_limit(), maxf(_drive_speed, max_forward_speed + _active_boost_speed_bonus * 0.45))
 
 
 func _get_active_forward_speed_limit() -> float:
     if _boost_time_remaining > 0.0:
-        return max_forward_speed + boost_speed_bonus
+        return max_forward_speed + _active_boost_speed_bonus
     return max_forward_speed
 
 
 func _get_boost_effect_strength() -> float:
     if _boost_time_remaining <= 0.0:
         return 0.0
-    return clampf(_boost_time_remaining / maxf(boost_duration, 0.001), 0.0, 1.0)
+    return clampf(_boost_time_remaining / maxf(_active_boost_duration, 0.001), 0.0, 1.0)
+
+
+func _get_drift_state_name() -> String:
+    match _drift_state:
+        DriftState.HOPPING:
+            return "hopping"
+        DriftState.CHARGING_MINI_TURBO:
+            return "charging_mini_turbo"
+        DriftState.MINI_TURBO_READY:
+            return "mini_turbo_ready"
+        DriftState.SUPER_MINI_TURBO_READY:
+            return "super_mini_turbo_ready"
+        _:
+            return "none"
+
+
+func _get_current_surface_name() -> String:
+    if _current_surface == null or not is_instance_valid(_current_surface):
+        return "road"
+    return _current_surface.get_surface_name()
 
 
 func _create_boost_effects() -> void:
@@ -1087,6 +1281,7 @@ func _update_debug_slider_labels() -> void:
 
 func _create_drift_sparks() -> void:
     _spark_white_material = _make_spark_material(Color(0.92, 0.98, 1.0, 1.0))
+    _spark_blue_material = _make_spark_material(Color(0.18, 0.62, 1.0, 1.0))
     _spark_gold_material = _make_spark_material(Color(1.0, 0.68, 0.12, 1.0))
     for spark_index: int in range(12):
         var spark: MeshInstance3D = MeshInstance3D.new()
@@ -1094,7 +1289,7 @@ func _create_drift_sparks() -> void:
         spark.top_level = true
         spark.visible = false
         var spark_mesh: BoxMesh = BoxMesh.new()
-        spark_mesh.size = Vector3(0.10, 0.10, 0.10)
+        spark_mesh.size = Vector3(0.30, 0.30, 0.30)
         spark.mesh = spark_mesh
         spark.material_override = _spark_white_material
         add_child(spark)
@@ -1105,26 +1300,39 @@ func _make_spark_material(color: Color) -> StandardMaterial3D:
     var material: StandardMaterial3D = StandardMaterial3D.new()
     material.albedo_color = color
     material.roughness = 0.22
+    material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    material.no_depth_test = true
+    material.emission_enabled = true
+    material.emission = color
+    material.emission_energy_multiplier = 0.65
     return material
+
+
+func _get_active_drift_spark_material() -> StandardMaterial3D:
+    if _drift_state == DriftState.SUPER_MINI_TURBO_READY and _spark_gold_material != null:
+        return _spark_gold_material
+    if _drift_state == DriftState.MINI_TURBO_READY and _spark_blue_material != null:
+        return _spark_blue_material
+    return _spark_white_material
 
 
 func _update_drift_sparks(delta: float) -> void:
     _spark_phase += delta * 18.0
     var sparks_active: bool = _is_drifting
-    var charged: bool = _drift_time >= drift_charge_duration
+    var spark_material: StandardMaterial3D = _get_active_drift_spark_material()
     for spark_index: int in range(_drift_spark_nodes.size()):
         var spark: MeshInstance3D = _drift_spark_nodes[spark_index]
         spark.visible = sparks_active
         if not sparks_active:
             continue
-        spark.material_override = _spark_gold_material if charged else _spark_white_material
+        spark.material_override = spark_material
         var side: float = -1.0 if spark_index % 2 == 0 else 1.0
         var lane: float = float(spark_index) * 0.5
         var phase: float = _spark_phase + float(spark_index) * 0.73
-        var base_position: Vector3 = _rear_wheel_tire.global_position - _bike_forward * 0.42 + _bike_right * side * 0.34
-        var spray_offset: Vector3 = -_bike_forward * (0.12 + lane * 0.045) + _bike_right * side * (0.04 + absf(sin(phase)) * 0.18) + _smoothed_ground_up * (0.04 + absf(cos(phase * 1.7)) * 0.12)
+        var base_position: Vector3 = _rear_wheel_tire.global_position - _bike_forward * 0.52 + _bike_right * side * 0.42
+        var spray_offset: Vector3 = -_bike_forward * (0.18 + lane * 0.065) + _bike_right * side * (0.08 + absf(sin(phase)) * 0.28) + _smoothed_ground_up * (0.08 + absf(cos(phase * 1.7)) * 0.18)
         spark.global_position = base_position + spray_offset
-        var pulse_scale: float = 0.55 + absf(sin(phase * 1.9)) * 0.55
+        var pulse_scale: float = 0.85 + absf(sin(phase * 1.9)) * 0.85
         spark.scale = Vector3.ONE * pulse_scale
 
 

@@ -38,8 +38,9 @@ extends Resource
 
 @export_group("Drift")
 @export var hop_impulse: float = 3.2
-@export var min_drift_speed: float = 8.0
-@export var drift_charge_duration: float = 1.0
+@export var min_drift_speed: float = 3.5
+@export var mini_turbo_charge_duration: float = 0.75
+@export var super_mini_turbo_charge_duration: float = 1.8
 @export var drift_steer_multiplier: float = 1.55
 @export var drift_grip_multiplier: float = 1.45
 @export var drift_lateral_speed: float = 1.8
@@ -48,6 +49,10 @@ extends Resource
 @export_group("Boost")
 @export var boost_duration: float = 1.25
 @export var boost_speed_bonus: float = 17.0
+@export var mini_turbo_boost_duration: float = 0.8
+@export var super_mini_turbo_boost_duration: float = 1.6
+@export var mini_turbo_speed_bonus: float = 11.0
+@export var super_mini_turbo_speed_bonus: float = 19.0
 @export var boost_acceleration: float = 54.0
 @export var boost_fov_bonus: float = 14.0
 @export var boost_fx_fov_enabled: bool = true

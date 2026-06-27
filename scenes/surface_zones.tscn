@@ -1,0 +1,75 @@
+[gd_scene load_steps=6 format=3 uid="uid://b2tokpihqmfsr"]
+
+[ext_resource type="Script" path="res://scripts/track_surface_area_3d.gd" id="1_surface_area"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_start_boost"]
+size = Vector3(7.0, 2.4, 5.0)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_curve_boost"]
+size = Vector3(8.0, 2.4, 5.2)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_jump_strip"]
+size = Vector3(8.0, 2.4, 4.5)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_offroad_patch"]
+size = Vector3(22.0, 2.4, 12.0)
+
+[node name="SurfaceZones" type="Node3D"]
+
+[node name="StartLineBoost" type="Area3D" parent="."]
+transform = Transform3D(0.73698086, 0, -0.6759136, 0, 1, 0, 0.6759136, 0, 0.73698086, -174.0, 3.7, 193.6)
+script = ExtResource("1_surface_area")
+surface_type = 5
+surface_priority = 20
+boost_duration = 0.75
+boost_speed_bonus = 14.0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StartLineBoost"]
+shape = SubResource("BoxShape3D_start_boost")
+
+[node name="FirstCurveApexBoost" type="Area3D" parent="."]
+transform = Transform3D(0.73698086, 0, -0.6759136, 0, 1, 0, 0.6759136, 0, 0.73698086, -150.0, 3.7, 216.0)
+script = ExtResource("1_surface_area")
+surface_type = 5
+surface_priority = 20
+boost_duration = 0.95
+boost_speed_bonus = 18.0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="FirstCurveApexBoost"]
+shape = SubResource("BoxShape3D_curve_boost")
+
+[node name="FirstCurveExitJump" type="Area3D" parent="."]
+transform = Transform3D(0.73698086, 0, -0.6759136, 0, 1, 0, 0.6759136, 0, 0.73698086, -126.0, 2.35, 224.0)
+script = ExtResource("1_surface_area")
+surface_type = 6
+surface_priority = 18
+jump_impulse = 8.2
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="FirstCurveExitJump"]
+shape = SubResource("BoxShape3D_jump_strip")
+
+[node name="InsideGrassSlowdown" type="Area3D" parent="."]
+transform = Transform3D(0.73698086, 0, -0.6759136, 0, 1, 0, 0.6759136, 0, 0.73698086, -153.0, 3.55, 202.0)
+script = ExtResource("1_surface_area")
+surface_type = 2
+surface_priority = 8
+speed_multiplier = 0.58
+acceleration_multiplier = 0.68
+turn_multiplier = 0.80
+grip_multiplier = 0.75
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="InsideGrassSlowdown"]
+shape = SubResource("BoxShape3D_offroad_patch")
+
+[node name="OuterGrassSlowdown" type="Area3D" parent="."]
+transform = Transform3D(0.73698086, 0, -0.6759136, 0, 1, 0, 0.6759136, 0, 0.73698086, -162.0, 3.55, 235.0)
+script = ExtResource("1_surface_area")
+surface_type = 1
+surface_priority = 7
+speed_multiplier = 0.78
+acceleration_multiplier = 0.82
+turn_multiplier = 0.90
+grip_multiplier = 0.88
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="OuterGrassSlowdown"]
+shape = SubResource("BoxShape3D_offroad_patch")
