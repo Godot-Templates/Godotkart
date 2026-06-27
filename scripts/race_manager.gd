@@ -17,11 +17,25 @@ const ITEM_MUSHROOM = "MUSHROOM"
 const ITEM_ROULETTE_DURATION = 1.15
 const MUSHROOM_BOOST_DURATION = 0.95
 const MUSHROOM_BOOST_BONUS = 16.0
+const LIGHT_KART_STATS: KartStats = preload("res://resources/karts/light_kart_stats.tres")
+const STANDARD_BIKE_STATS: KartStats = preload("res://resources/karts/standard_bike_stats.tres")
+const INSIDE_DRIFT_BIKE_STATS: KartStats = preload("res://resources/karts/inside_drift_bike_stats.tres")
+const OUTSIDE_DRIFT_BIKE_STATS: KartStats = preload("res://resources/karts/outside_drift_bike_stats.tres")
+const HEAVY_KART_STATS: KartStats = preload("res://resources/karts/heavy_kart_stats.tres")
 
 @export var total_laps: int = 3
 @export var show_checkpoint_gates: bool = true
 @export var checkpoint_visual_mode: RaceCheckpoint3D.VisualMode = RaceCheckpoint3D.VisualMode.GROUND_LINE_ONLY
+@export var selected_vehicle_index: int = 1
 @export var player_path: NodePath = NodePath("../MotorcycleKart")
+
+var _vehicle_presets: Array[KartStats] = [
+    LIGHT_KART_STATS,
+    STANDARD_BIKE_STATS,
+    INSIDE_DRIFT_BIKE_STATS,
+    OUTSIDE_DRIFT_BIKE_STATS,
+    HEAVY_KART_STATS
+]
 
 var _route_points: Array[Vector3] = [
     Vector3(-179.0, 3.05, 188.7),
@@ -69,6 +83,8 @@ var _time_label: Label = null
 var _checkpoint_label: Label = null
 var _message_label: Label = null
 var _item_label: Label = null
+var _vehicle_label: Label = null
+var _vehicle_detail_label: Label = null
 var _countdown_label: Label = null
 
 
@@ -77,11 +93,34 @@ func _ready() -> void:
     _player = get_node_or_null(player_path) as MotorcycleBicycleControllerV4
     if _player == null:
         _player = get_tree().current_scene.get_node_or_null("MotorcycleKart") as MotorcycleBicycleControllerV4
+    _apply_selected_vehicle_preset()
     _create_checkpoints()
     _create_hud()
     _connect_item_boxes()
     call_deferred("_connect_item_boxes")
     _initialize_race_state()
+
+
+func _input(event: InputEvent) -> void:
+    var key_event: InputEventKey = event as InputEventKey
+    if key_event == null or not key_event.pressed or key_event.echo:
+        return
+    var keycode: Key = key_event.physical_keycode
+    if keycode == KEY_NONE:
+        keycode = key_event.keycode
+    match keycode:
+        KEY_1:
+            select_vehicle_preset(0)
+        KEY_2:
+            select_vehicle_preset(1)
+        KEY_3:
+            select_vehicle_preset(2)
+        KEY_4:
+            select_vehicle_preset(3)
+        KEY_5:
+            select_vehicle_preset(4)
+        KEY_TAB:
+            select_vehicle_preset((selected_vehicle_index + 1) % _vehicle_presets.size())
 
 
 func _process(delta: float) -> void:
@@ -112,6 +151,23 @@ func _ensure_item_input_action() -> void:
         var event: InputEventKey = InputEventKey.new()
         event.physical_keycode = KEY_E
         InputMap.action_add_event("use_item", event)
+
+
+func select_vehicle_preset(index: int) -> void:
+    if _vehicle_presets.is_empty():
+        return
+    selected_vehicle_index = clampi(index, 0, _vehicle_presets.size() - 1)
+    _apply_selected_vehicle_preset()
+    _update_vehicle_label()
+
+
+func _apply_selected_vehicle_preset() -> void:
+    if _player == null or _vehicle_presets.is_empty():
+        return
+    selected_vehicle_index = clampi(selected_vehicle_index, 0, _vehicle_presets.size() - 1)
+    var selected_stats: KartStats = _vehicle_presets[selected_vehicle_index]
+    _player.set_kart_stats(selected_stats)
+    _set_message("Vehicle: %s" % selected_stats.display_name, 1.2)
 
 
 func _connect_item_boxes() -> void:
@@ -321,8 +377,8 @@ func _create_hud() -> void:
     add_child(_canvas)
     var panel: PanelContainer = PanelContainer.new()
     panel.name = "RacePanel"
-    panel.position = Vector2(16.0, 292.0)
-    panel.custom_minimum_size = Vector2(330.0, 158.0)
+    panel.position = Vector2(16.0, 250.0)
+    panel.custom_minimum_size = Vector2(430.0, 206.0)
     _canvas.add_child(panel)
     var margin: MarginContainer = MarginContainer.new()
     margin.add_theme_constant_override("margin_left", 12)
@@ -347,11 +403,15 @@ func _create_hud() -> void:
     _lap_label = _make_hud_label("Lap 1/%d" % total_laps, 22)
     _time_label = _make_hud_label("Time 0:00.000", 18)
     _checkpoint_label = _make_hud_label("Next CP 1", 16)
+    _vehicle_label = _make_hud_label("Vehicle: Standard Bike", 16)
+    _vehicle_detail_label = _make_hud_label("1-5/Tab switch presets", 13)
     _item_label = _make_hud_label("Item: Empty  |  E = use", 18)
     _message_label = _make_hud_label("", 18)
     box.add_child(_lap_label)
     box.add_child(_time_label)
     box.add_child(_checkpoint_label)
+    box.add_child(_vehicle_label)
+    box.add_child(_vehicle_detail_label)
     box.add_child(_item_label)
     box.add_child(_message_label)
 
@@ -370,7 +430,19 @@ func _update_hud() -> void:
         _time_label.text = "Time %s" % _format_time(_race_time)
     if _checkpoint_label != null:
         _checkpoint_label.text = "Next CP %d  |  R = respawn" % _next_checkpoint_index
+    _update_vehicle_label()
     _update_item_label()
+
+
+func _update_vehicle_label() -> void:
+    if _vehicle_presets.is_empty():
+        return
+    selected_vehicle_index = clampi(selected_vehicle_index, 0, _vehicle_presets.size() - 1)
+    var selected_stats: KartStats = _vehicle_presets[selected_vehicle_index]
+    if _vehicle_label != null:
+        _vehicle_label.text = "Vehicle %d/%d: %s" % [selected_vehicle_index + 1, _vehicle_presets.size(), selected_stats.display_name]
+    if _vehicle_detail_label != null:
+        _vehicle_detail_label.text = "%s %s | speed %.1f accel %.1f MT %.2fs | 1-5/Tab" % [selected_stats.weight_class, selected_stats.vehicle_type, selected_stats.max_forward_speed, selected_stats.engine_acceleration, selected_stats.mini_turbo_charge_duration]
 
 
 func _update_item_label() -> void:

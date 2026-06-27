@@ -1,6 +1,12 @@
 class_name KartStats
 extends Resource
 
+@export_group("Identity")
+@export var display_name: String = "Standard Bike"
+@export var weight_class: String = "Medium"
+@export var vehicle_type: String = "Inside-drift bike"
+@export_multiline var description: String = "Balanced all-rounder."
+
 @export_group("Drive")
 @export var engine_acceleration: float = 12.5
 @export var brake_deceleration: float = 34.0

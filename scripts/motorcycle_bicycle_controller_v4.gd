@@ -175,6 +175,22 @@ var _spawn_transform: Transform3D = Transform3D.IDENTITY
 @onready var _headlight: Node3D = $Model/TinyHeadlight
 
 
+func set_kart_stats(new_stats: KartStats) -> void:
+    if new_stats == null:
+        return
+    kart_stats = new_stats
+    _apply_kart_stats()
+
+
+func get_kart_stats() -> KartStats:
+    return kart_stats
+
+
+func get_kart_stats_summary() -> String:
+    var active_stats: KartStats = kart_stats if kart_stats != null else DEFAULT_KART_STATS
+    return "%s | %s | %.1f speed | %.1f accel | %.2fs MT" % [active_stats.display_name, active_stats.weight_class, active_stats.max_forward_speed, active_stats.engine_acceleration, active_stats.mini_turbo_charge_duration]
+
+
 func _apply_kart_stats() -> void:
     var active_stats: KartStats = kart_stats
     if active_stats == null:
@@ -991,6 +1007,9 @@ func get_telemetry() -> Dictionary:
     return {
         "speed": horizontal_velocity.length(),
         "drive_speed": _drive_speed,
+        "kart_name": kart_stats.display_name if kart_stats != null else "Default",
+        "kart_weight_class": kart_stats.weight_class if kart_stats != null else "Medium",
+        "kart_vehicle_type": kart_stats.vehicle_type if kart_stats != null else "Bike",
         "lean_angle": _visual_lean_angle,
         "target_lean_angle": _target_lean_angle,
         "steer_angle": _front_steer_angle,

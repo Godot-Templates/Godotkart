@@ -7,4 +7,5 @@ script = ExtResource("1_race_manager")
 total_laps = 3
 show_checkpoint_gates = true
 checkpoint_visual_mode = 1
+selected_vehicle_index = 1
 player_path = NodePath("../MotorcycleKart")
